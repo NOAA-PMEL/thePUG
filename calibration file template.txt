@@ -1,0 +1,28 @@
+
+file = [
+"MASTER",
+"headerid=" + hid,
+"phone=" + phone_no,
+"release=" + release,
+"gps",
+"samplestart=" + gps_start,
+"sampleinterval=" + gps_dt,
+"under_ice",
+"samplestart=" + ice_start,
+"sampleinterval=" + ice_dt,
+"iridium_tx",
+"samplestart=" + iridium_start,
+"sampleinterval=" + iridium_dt,
+"bottom_sample",
+"samplestart=" + bottom_start,
+"sampleinterval=" + bottom_dt,
+"sst_sample",
+"samplestart=" + sst_start,
+"sampleinterval="sst_dt,
+"pressure S/N: " + p_sn,
+"cal=" + bar + "," + meters,
+"probe1 S/N: " + t1.sn,
+"c1=" + t1.AC1 + ",c2=" + t1.BC2 + ",c3=" + t1.CC3,
+"probe2 S/N: " + t2.sn,
+"c1=" + t2.AC1 + ",c2=" + t2.BC2 + ",c3=" + t2.CC3
+]
