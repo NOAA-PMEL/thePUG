@@ -12,10 +12,12 @@ Maybe a file bar?
 
 
 import wx
+#from wx.lib.pubsub import Publisher
 import pandas
 import pickle
 import os
 import cft
+import backend
 import copy
 
 # BaseTab is for entry of basic configuration information: ID, date, phone number
@@ -28,8 +30,13 @@ class BaseTab(wx.Panel):
         panel = wx.Panel(self, -1)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
+        panel.SetSizer(sizer)
+        #sizer.Add(self.btn, 0, wx.ALIGN_CENTER)
 
-        # basic information input
+        self.InitUI()
+
+    def InitUI(self):
+
         wx.StaticText(self, label="Header ID:", pos=(5, 10))
         self.id = wx.TextCtrl(self, -1, "", pos=(5, 30))
 
@@ -39,43 +46,39 @@ class BaseTab(wx.Panel):
         wx.StaticText(self, label="Release Date:", pos=(5, 150))
         self.rel_date = wx.TextCtrl(self, -1, "", pos=(5, 170))
 
-        # configuration write and read options
-        self.write_path = wx.StaticText(self, label="Configuration Write Location", pos=(200, 10))
-        self.write_path = wx.DirPickerCtrl(self, -1, path=os.path.abspath(__file__), pos=(200, 30))
+        wx.StaticText(self, label="Configuration Write Location", pos=(200, 10))
+        path = "\\".join(os.path.abspath(__file__).split("\\")) + "\\config.txt"
+        self.write_path = wx.FilePickerCtrl(self, wx.FLP_SAVE, path=path, pos=(200, 30),)
+
 
         self.btn = wx.Button(self, -1, "Write Configuration", pos=(200, 100))
-        sizer.Add(self.btn, 0, wx.ALIGN_CENTER)
         self.btn.Bind(wx.EVT_BUTTON, self.WriteConfig)
 
-        panel.SetSizer(sizer)
-
-    # WriteConfig
-    # WriteConfig is a pretty dumb func at this point, it only looks for empty data
-    # Need to figure out the best method for checking data formats
-    #   regex?
-
     def WriteConfig(self, event):
-        global our_config
+        #global our_config
+        self.our_config = Backend.our_config
 
-        our_config['hid'] = self.id.GetValue()
-        our_config['phone'] = self.phone.GetValue()
-        our_config['release'] = self.rel_date.GetValue()
+        self.our_config['hid'] = self.id.GetValue()
+        self.our_config['phone_no'] = self.phone.GetValue()
+        self.our_config['release'] = self.rel_date.GetValue()
 
         missing = []
-        k_list = list(our_config.keys())
-
-        # Error check, probably expand to its own function
-        # It would be nice to have a error popup here
+        k_list = list(self.our_config.keys())
+        #It would be nice to have a error popup here
         for n in range(len(k_list)):
-            if our_config[k_list[n]] == '':
+            if self.our_config[k_list[n]] == '':
                 missing.append(k_list[n])
 
-        if len(missing) >= 1:
-            print("Missing! ", missing)
-            return
+        # if len(missing) >= 1:
+        #     miss_str = ""
+        #     for n in missing:
+        #         miss_str += n + ", "
+        #
+        #     wx.MessageBox(miss_str, 'Missing Info',
+        #                   wx.OK | wx.ICON_INFORMATION)
+        #else:
+        cft.Output.WriteConfig(cft.Output, self.our_config, self.write_path.GetPath())
 
-# SamplingTab
-# contains start and sampling frequency of instruments, GPS, sst, and others
 
 class SamplingTab(wx.Panel):
     global data_pack
@@ -86,6 +89,11 @@ class SamplingTab(wx.Panel):
         panel = wx.Panel(self, -1)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
+        self.InitUI()
+
+    def InitUI(self):
+        #global data_pack
+        self.data_pack = Backend.data_pack
 
         #GPS sampling
         wx.StaticText(self, label="GPS:", pos=(5, 10))
@@ -132,60 +140,63 @@ class SamplingTab(wx.Panel):
         self.sstinterval.SetHint("Interval HH:MM:DD")
         self.sstinterval.Bind(wx.EVT_TEXT, self.SSTSample)
 
-
-    # these are functionally identical, just pointing at different text boxes
     def GPSSample(self, event):
-        global our_config
+        #global our_config
+        self.our_config = Backend.our_config
 
         if self.gpsstart.GetValue() != "":
-            our_config['gps_start'] = self.gpsstart.GetValue()
+            self.our_config['gps_start'] = self.gpsstart.GetValue()
         if self.gpsinterval.GetValue() != "":
-            our_config['gps_dt'] = self.gpsinterval.GetValue()
+            self.our_config['gps_dt'] = self.gpsinterval.GetValue()
 
     def IceSample(self, event):
-        global our_config
+        #global our_config
+        self.our_config = Backend.our_config
 
         if self.icestart.GetValue() != "":
-            our_config['ice_start'] = self.icestart.GetValue()
+            self.our_config['ice_start'] = self.icestart.GetValue()
         if self.iceinterval.GetValue() != "":
-            our_config['ice_dt'] = self.iceinterval.GetValue()
+            self.our_config['ice_dt'] = self.iceinterval.GetValue()
 
     def BottomSample(self, event):
-        global our_config
+        #global our_config
+        self.our_config = Backend.our_config
 
         if self.bottomstart.GetValue() != "":
-            our_config['bottom_start'] = self.bottomstart.GetValue()
+            self.our_config['bottom_start'] = self.bottomstart.GetValue()
         if self.bottominterval.GetValue() != "":
-            our_config['bottom_dt'] = self.bottominterval.GetValue()
+            self.our_config['bottom_dt'] = self.bottominterval.GetValue()
 
     def IrSample(self, event):
-        global our_config
+        #global our_config
+        self.our_config = Backend.our_config
 
         if self.irstart.GetValue() != "":
-            our_config['iridium_start'] = self.irstart.GetValue()
+            self.our_config['iridium_start'] = self.irstart.GetValue()
         if self.irinterval.GetValue() != "":
-            our_config['iridium_dt'] = self.irinterval.GetValue()
+            self.our_config['iridium_dt'] = self.irinterval.GetValue()
 
     def SSTSample(self, event):
-        global our_config
+        #global our_config
+        self.our_config = Backend.our_config
 
         if self.sststart.GetValue() != "":
-            our_config['sst_start'] = self.sststart.GetValue()
+            self.our_config['sst_start'] = self.sststart.GetValue()
         if self.sstinterval.GetValue() != "":
-            our_config['sst_dt'] = self.sstinterval.GetValue()
+            self.our_config['sst_dt'] = self.sstinterval.GetValue()
 
-
-# CalTab
-# contains calibration information for the thermometers and depth sensors
-# also displaces calibration factors for particular instuments
-# displaying date of calibration is probably a good idea
 
 class CalTab(wx.Panel):
-    global data_pack
-
     def __init__(self, parent):
+        #wx.Panel.__init__(self, parent)
         super(CalTab, self).__init__(parent, size=(350, 400))   # size doesn't seem to do anything
         panel = wx.Panel(self, -1)
+
+        self.InitUI()
+
+    def InitUI(self):
+        #global data_pack
+        self.data_pack = Backend.data_pack
 
         #dropbox for thermometers
         self.label = wx.StaticText(self, label="Thermometer #1", pos=(50, 30))
@@ -193,31 +204,32 @@ class CalTab(wx.Panel):
 
         # generate a list of calibrated thermometers
         t_sns = {"": ""}
-        for sn in list(data_pack['temp'].index):
+        for sn in list(self.data_pack['temp'].index):
             t_sns[(str(int(sn)).rjust(4,'0'))] = sn
 
-        # generate a list of calibrated pressure meters
-        p_sns = list(data_pack['pressure'].index)
+        # generate a list of calibrated barometers
+        p_sns = list(self.data_pack['pressure'].index)
         p_sns.insert(0, "")
 
         # dropboxes for selecting thermometer calibration
         self.combobox1 = wx.ComboBox(self, choices=list(t_sns.keys()), pos=(50, 50))
         self.thermlabel1 = wx.StaticText(self, label='', pos=(50, 80))
-        self.Bind(wx.EVT_COMBOBOX, lambda evt1: self.TempCombo(evt1, t_sns, data_pack))
+        self.Bind(wx.EVT_COMBOBOX, lambda evt1: self.TempCombo(evt1, t_sns, self.data_pack))
 
         self.combobox2 = wx.ComboBox(self, choices=list(t_sns.keys()), pos=(250, 50))
         self.thermlabel2 = wx.StaticText(self, label='', pos=(250, 80))
-        self.Bind(wx.EVT_COMBOBOX, lambda evt2: self.TempCombo(evt2, t_sns, data_pack))
+        self.Bind(wx.EVT_COMBOBOX, lambda evt2: self.TempCombo(evt2, t_sns, self.data_pack))
 
         self.label = wx.StaticText(self, label="Barometer", pos=(50, 170))
         self.presbox = wx.ComboBox(self, choices=p_sns, pos=(50, 200))
         self.preslabel = wx.StaticText(self, label='', pos=(50, 230))
-        self.Bind(wx.EVT_COMBOBOX, lambda evp: self.TempCombo(evp, t_sns, data_pack))
+        self.Bind(wx.EVT_COMBOBOX, lambda evp: self.TempCombo(evp, t_sns, self.data_pack))
 
     # for whatever reason, it wouldn't update the output cal date if I made individual functions
     # so one giant one. Fun!
     def TempCombo(self, event, sns, data):
-        global our_config
+        #global our_config
+        self.our_config = Backend.our_config
 
         # collect our inputs
         tmeter1, tmeter2, pmeter = "", "", ""
@@ -232,10 +244,10 @@ class CalTab(wx.Panel):
             self.thermlabel1.SetLabel("Calibration: " + cals1)
 
             # write calibration data to our bucket
-            our_config["probe1_sn"] = tmeter1
-            our_config["p1c1"] = data['temp'].loc[tmeter1, 'AC1']
-            our_config["p1c2"] = data['temp'].loc[tmeter1, 'BC2']
-            our_config["p1c3"] = data['temp'].loc[tmeter1, 'CC3']
+            self.our_config["probe1_sn"] = tmeter1
+            self.our_config["p1c1"] = data['temp'].loc[tmeter1, 'AC1']
+            self.our_config["p1c2"] = data['temp'].loc[tmeter1, 'BC2']
+            self.our_config["p1c3"] = data['temp'].loc[tmeter1, 'CC3']
         else:
             self.thermlabel1.SetLabel("")
 
@@ -246,27 +258,25 @@ class CalTab(wx.Panel):
             self.thermlabel2.SetLabel("Calibration:" + cals2)
 
             # write calibration data to our bucket
-            our_config["probe2_sn"] = tmeter2
-            our_config["p2c1"] = data['temp'].loc[tmeter2, 'AC1']
-            our_config["p2c2"] = data['temp'].loc[tmeter2, 'BC2']
-            our_config["p2c3"] = data['temp'].loc[tmeter2, 'CC3']
+            self.our_config["probe2_sn"] = tmeter2
+            self.our_config["p2c1"] = data['temp'].loc[tmeter2, 'AC1']
+            self.our_config["p2c2"] = data['temp'].loc[tmeter2, 'BC2']
+            self.our_config["p2c3"] = data['temp'].loc[tmeter2, 'CC3']
         else:
             self.thermlabel2.SetLabel("")
 
-        # check the pressure sensor
+        # check the barometer
         if pmeter != "":
             cals = "\nMeters: " + str(data['pressure'].loc[pmeter, 'REF SBE METERS']) + " \nBar: " + str(
                 data['pressure'].loc[pmeter, 'KELLER BAR'])
             self.preslabel.SetLabel("Calibration: " + cals)
 
-            # write calibration data to our bucket
-            our_config["p_sn"] = pmeter
-            our_config["cal_pres"] = data['pressure'].loc[pmeter, 'REF SBE METERS']
-            our_config['cal_depth'] = data['pressure'].loc[pmeter, 'KELLER BAR']
+            # write calibrationdata to our bucket
+            self.our_config["p_sn"] = pmeter
+            self.our_config["cal_pres"] = data['pressure'].loc[pmeter, 'REF SBE METERS']
+            self.our_config['cal_depth'] = data['pressure'].loc[pmeter, 'KELLER BAR']
         else:
             self.preslabel.SetLabel("")
-
-# Frame for containing the various tabs
 
 class PUGFrame(wx.Frame):
     def __init__(self, parent, title):
@@ -291,25 +301,23 @@ class PUGFrame(wx.Frame):
         sizer.Add(nb, 1, wx.EXPAND)
         p.SetSizer(sizer)
 
-
 # PUG (PopUpGui) main application.
 # Basically just starts
 
 class PUGApp(wx.App):
+
     def OnInit(self):
         self.frame = PUGFrame(parent=None, title="The PUG")
         self.frame.Show()
         return True
 
+class Backend():
+    def __init__(self):
+        self.our_config = cft.TemplateGen.c_info
+        self.data_pack = backend.startup()
+
+    our_config = cft.TemplateGen.c_info
+    data_pack = backend.startup()
+
 #path = "C:\\Users\\jewell\\PycharmProjects\\PopUpGUI\\dat files\\pt_calibration_20210413.dat"
 #data_pack = pickle.load(open(path, 'rb'))
-
-# #the dict which will contain our data is copied from a template in cft.py -> TemplateGen class
-def main():
-    our_config = cft.TemplateGen.c_info
-    app = PUGApp()
-    app.MainLoop()
-
-
-if __name__ == '__main__':
-    main()

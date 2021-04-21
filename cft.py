@@ -6,8 +6,28 @@ TODO:
 Generalize the sensors so that if new sensors are added it is easy to expand this program
 '''
 
-class TemplateGen():
+from dataclasses import dataclass
+import pandas as pd
 
+@dataclass
+class ConfigData:
+    # pretty well what it says on the tin, it takes the config data dict and unpacks it
+    # should have attrs:
+    # 'p cal errors': list()
+    # 'p date errors': list()
+    # 'pressure': pd.DataFrame
+    # 't cal errors': set()
+    # 't date errors': list()
+    # 't serial errors': list()
+    # 'temp': pd.DataFrame
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
+
+class TemplateGen():
 
     master = [
         ["MASTER\n"],
@@ -99,6 +119,47 @@ class TemplateGen():
         "0.000000162236356555533"
         ]
 
+class Output():
+
+    def WriteConfig(self, config_info, path):
+
+        config = self.PopulateConfig(self, config_info)
+        self.WriteFile(self, config, path)
+
+    def PopulateConfig(self, config_inf):
+
+        items = list(config_inf.keys())
+        #master = TemplateGen.master
+
+        config = []
+
+        for line in TemplateGen.master:
+
+            if len(line) == 1:
+
+                config.append(line[0])
+
+            elif len(line) == 2:
+
+                temp = line[0] + str(config_inf[line[1]])
+                config.append(temp)
+
+            elif len(line) == 3:
+
+                temp = line[0] + str(config_inf[line[1]]) + line[2]
+                config.append(temp)
+
+        print(config)
+        return config
+
+    def WriteFile(self, pop_list, path):
+
+        with open(path, "w") as f:
+
+            for line in pop_list:
+
+                f.write(line)
+
 
 class SelfTests():
 
@@ -106,7 +167,7 @@ class SelfTests():
     def dummy_filled(self):
 
         filled_dummy = []
-        c_info = TemplateGen.c_info(self)
+        c_info = TemplateGen.c_info()
         c_items = list(c_info.keys())
 
         for n in range(len(c_items)):
