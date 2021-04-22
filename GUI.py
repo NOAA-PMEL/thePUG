@@ -6,7 +6,7 @@ generalize format
 generalize textbox information
     This is so that if a configuration is read in, it will populate the textboxes with pre-existing information
     Should hookup with a info template from cft.py
-error popup for badly formatted inputs
+Missing Data popup should give actual variable names instead of dict keys
 Maybe a file bar?
 '''
 
@@ -69,15 +69,15 @@ class BaseTab(wx.Panel):
             if self.our_config[k_list[n]] == '':
                 missing.append(k_list[n])
 
-        # if len(missing) >= 1:
-        #     miss_str = ""
-        #     for n in missing:
-        #         miss_str += n + ", "
-        #
-        #     wx.MessageBox(miss_str, 'Missing Info',
-        #                   wx.OK | wx.ICON_INFORMATION)
-        #else:
-        cft.Output.WriteConfig(cft.Output, self.our_config, self.write_path.GetPath())
+        if len(missing) >= 1:
+            miss_str = ""
+            for n in missing:
+                miss_str += n + ", "
+
+            wx.MessageBox(miss_str, 'Missing Info',
+                          wx.OK | wx.ICON_INFORMATION)
+        else:
+            cft.Output.WriteConfig(cft.Output, self.our_config, self.write_path.GetPath())
 
 
 class SamplingTab(wx.Panel):
