@@ -311,13 +311,15 @@ class PUGApp(wx.App):
         self.frame.Show()
         return True
 
+# lazy gateway to our backend.py datastructures
+# grabs data from backend.py method and makes is available more convienently here
 class Backend():
     def __init__(self):
         self.our_config = cft.TemplateGen.c_info
-        self.data_pack = backend.startup()
+        self.data_pack = backend.ImportData.startup()
 
     our_config = cft.TemplateGen.c_info
-    data_pack = backend.startup()
+    data_pack = backend.ImportData.startup(backend.ImportData)
 
 #path = "C:\\Users\\jewell\\PycharmProjects\\PopUpGUI\\dat files\\pt_calibration_20210413.dat"
 #data_pack = pickle.load(open(path, 'rb'))
