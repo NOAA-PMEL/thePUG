@@ -296,10 +296,26 @@ class PUGFrame(wx.Frame):
         nb.AddPage(tab2, "Sampling Info")
         nb.AddPage(tab3, "Calibrations")
 
+        menubar = wx.MenuBar()
+
+        fileMenu = wx.Menu()
+        fileMenu.Append(wx.ID_OPEN, '&Import Calibration File')
+        fileMenu.Append(wx.ID_SAVE, '&Export Configuration')
+        fileMenu.AppendSeparator()
+        qmi = fileMenu.Append(wx.ID_EXIT, '&Quit\tCtrl+W')
+
+        self.Bind(wx.EVT_MENU, self.OnQuit, qmi)
+
+        menubar.Append(fileMenu, '&File')
+        self.SetMenuBar(menubar)
+
         # Set sizer
         sizer = wx.BoxSizer()
         sizer.Add(nb, 1, wx.EXPAND)
         p.SetSizer(sizer)
+
+    def OnQuit(self, e):
+        self.Close()
 
 # PUG (PopUpGui) main application.
 # Basically just starts
