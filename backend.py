@@ -2,7 +2,23 @@
 import os
 import pickle
 import pandas as pd
+import wx
 from datetime import date
+
+# class StartDialog(wx.App):
+#
+#     app = wx.App()
+#
+#     def OpenFile(self):
+#         openFileDialog = wx.FileDialog(self, "Select calibration file",
+#                                        wildcard="Excel files (*.xlsx;*.xls)|*.xlsx;*.xls",
+#                                        style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
+#
+#         openFileDialog.ShowModal()
+#         path = openFileDialog.GetPath()
+#         openFileDialog.Destroy()
+#
+#         return path
 
 class ImportData:
 
@@ -17,7 +33,6 @@ class ImportData:
     # in the future, it will be desirable to make this more robust
 
         tabs = ["Temp CAL DATA", "Pres CAL DATA"]
-        path = 'C:\\Users\jewell\\Documents\\PopUps\\GUI\\steinhart_hart_calculator_2019 REFORMAT.xlsx'
 
         # read in our master calibration file from excel
         data = pd.read_excel(path, sheet_name=tabs, skiprows=[0])
@@ -111,7 +126,9 @@ class ImportData:
         # if there aren't any dat files, create one from a spreadsheet
         if len(dats) == 0:
 
-            cal_pack = ImportData.import_cal_data(dats_dir)
+            #cal_pack = ImportData.import_cal_data(StartDialog.OpenFile(self))
+            path = 'C:\\Users\jewell\\Documents\\PopUps\\GUI\\steinhart_hart_calculator_2019 REFORMAT.xlsx'
+            cal_pack = ImportData.import_cal_data(self,path)
 
         # find the most recent dat file, they should have their creation date in the filename
         else:

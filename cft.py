@@ -26,6 +26,9 @@ class ConfigData:
             setattr(self, key, value)
 
 
+# class Formats():
+#
+#     basic =
 
 class TemplateGen():
 
@@ -86,6 +89,33 @@ class TemplateGen():
         "p1c2": "",
         "p1c3": "",
         "probe2_sn": "",
+        "p2c1": "",
+        "p2c2": "",
+        "p2c3": ""
+    }
+
+    human_readable = {
+        "hid": "ID Number",
+        "phone_no": "Phone number",
+        "release": "Release Date",
+        "gps_start": "GPS Start",
+        "gps_dt": "GSP Interval",
+        "ice_start": "Under Ice Start",
+        "ice_dt": "Under Ice Interval",
+        "iridium_start": "Iridium Start",
+        "iridium_dt": "Iridium Interval",
+        "bottom_start": "Bottom Sample Start",
+        "bottom_dt": "Bottom Sample Interval",
+        "sst_start": "SST Start",
+        "sst_dt": "SST Interval",
+        "p_sn": "Pressure Sensor",
+        "cal_pres": "",
+        "cal_depth": "",
+        "probe1_sn": "Thermometer #1",
+        "p1c1": "",
+        "p1c2": "",
+        "p1c3": "",
+        "probe2_sn": "Thermometer #2",
         "p2c1": "",
         "p2c2": "",
         "p2c3": ""
