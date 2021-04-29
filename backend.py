@@ -127,8 +127,11 @@ class ImportData:
         if len(dats) == 0:
 
             #cal_pack = ImportData.import_cal_data(StartDialog.OpenFile(self))
-            path = 'C:\\Users\jewell\\Documents\\PopUps\\GUI\\steinhart_hart_calculator_2019 REFORMAT.xlsx'
-            cal_pack = ImportData.import_cal_data(self,path)
+            fpath = 'C:\\Users\jewell\\Documents\\PopUps\\GUI\\steinhart_hart_calculator_2019 REFORMAT.xlsx'
+            if os.path.exists(fpath):
+                cal_pack = ImportData.import_cal_data(self, fpath)
+            else:
+                cal_pack = None
 
         # find the most recent dat file, they should have their creation date in the filename
         else:

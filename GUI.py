@@ -6,13 +6,12 @@ generalize format
 generalize textbox information
     This is so that if a configuration is read in, it will populate the textboxes with pre-existing information
     Should hookup with a info template from cft.py
-Missing Data popup should give actual variable names instead of dict keys
 Maybe a file bar?
 '''
 
 
 import wx
-#from wx.lib.pubsub import Publisher
+from pubsub import pub
 import pandas
 import pickle
 import os
@@ -29,7 +28,7 @@ class BaseTab(wx.Panel):
         super(BaseTab, self).__init__(parent, size=(350, 400))
         panel = wx.Panel(self, -1)
         self.our_config = Backend.our_config
-
+        #self.data_pack = Backend.data_pack
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         panel.SetSizer(sizer)
@@ -56,17 +55,30 @@ class BaseTab(wx.Panel):
         self.rel_date.Bind(wx.EVT_KILL_FOCUS, self.CheckDateFormat)
 
         wx.StaticText(self, label="Configuration Write Location", pos=(200, 10))
-        path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
-        self.write_path = wx.FilePickerCtrl(self, wx.FLP_SAVE, path=(path + "\\config.txt"), pos=(200, 30))
+        self.path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
+        # self.write_path = wx.FilePickerCtrl(self, wx.FLP_SAVE | wx.FLP_OVERWRITE_PROMPT | wx.FLP_SMALL,
+        #                                     path=(path + "\\config.txt"), pos=(200, 30))
+        self.out_disp = wx.TextCtrl(self, -1, str(self.path), pos=(200,30))
 
+        self.get_path = wx.Button(self, -1, "...", pos=(320, 30))
+        self.get_path.Bind(wx.EVT_BUTTON, self.getWritePath)
         self.btn = wx.Button(self, -1, "Write Configuration", pos=(200, 60))
         self.btn.Bind(wx.EVT_BUTTON, self.WriteConfig)
 
-        wx.StaticText(self, label="Import New Calibration File", pos=(200, 130))
-        self.read_path = wx.FilePickerCtrl(self, wx.FLP_OPEN, path=path, pos=(200, 150))
+    def getWritePath(self, event):
 
-        self.btn = wx.Button(self, -1, "Import Calibration", pos=(200, 180))
-        self.btn.Bind(wx.EVT_BUTTON, self.ReadCal)
+        with wx.FileDialog(self, message="Configuration Save",
+                            wildcard=".txt files (*.txt)|*.txt",
+                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+                            defaultDir=self.path, defaultFile="config.txt") as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            new_path = fileDialog.GetPath()
+            self.out_disp.Clear()
+            self.out_disp.SetLabel(new_path)
+            return
 
     def WriteConfig(self, event):
         # what it says on the tin,
@@ -88,13 +100,7 @@ class BaseTab(wx.Panel):
             wx.MessageBox(miss_str, 'Missing Info',
                           wx.OK | wx.ICON_INFORMATION)
         else:
-            cft.Output.WriteConfig(cft.Output, self.our_config, self.write_path.GetPath())
-
-    def ReadCal(self, event):
-
-        self.data_pack = backend.ImportData.import_cal_data(self, self.read_path.GetPath())
-        CalTab.Update(self)
-        CalTab.Show(self)
+            cft.Output.WriteConfig(cft.Output, self.our_config, self.out_disp.GetValue())
 
     def CheckIDFormat(self, event):
 
@@ -120,7 +126,7 @@ class BaseTab(wx.Panel):
 
         pnum.replace("-", "")
 
-        if pnum.isdigit() and len(pnum) == 10:
+        if pnum.isdigit() and len(pnum) >= 10:
             self.our_config['phone_no'] = pnum
         else:
             self.ErrorMsg("Phone number incorrectly formatted!")
@@ -167,27 +173,27 @@ class SamplingTab(wx.Panel):
         #GPS sampling
         wx.StaticText(self, label="GPS:",  pos=(5, 10))
         gpsstart = wx.TextCtrl(self, -1, "", name='gps_start', pos=(5, 30))
-        gpsinterval = wx.TextCtrl(self, -1, "", name='gps_interval', pos=(5, 55))
+        gpsinterval = wx.TextCtrl(self, -1, "", name='gps_dt', pos=(5, 55))
 
         # Under Ice Sampling
         wx.StaticText(self, label="Under Ice:", pos=(150, 10))
         icestart = wx.TextCtrl(self, -1, "", name='ice_start', pos=(150, 30))
-        iceinterval = wx.TextCtrl(self, -1, "", name='ice_interval', pos=(150, 55))
+        iceinterval = wx.TextCtrl(self, -1, "", name='ice_dt', pos=(150, 55))
 
         # Bottom Sampling
         wx.StaticText(self, label="Bottom:", pos=(5, 90))
         bottomstart = wx.TextCtrl(self, -1, "", name='bottom_start', pos=(5, 110))
-        bottominterval = wx.TextCtrl(self, -1, "", name='bottom_interval', pos=(5, 135))
+        bottominterval = wx.TextCtrl(self, -1, "", name='bottom_dt', pos=(5, 135))
 
         # Iridium Sampling
         wx.StaticText(self, label="Iridium:", pos=(150, 90))
         irstart = wx.TextCtrl(self, -1, "", name='iridium_start', pos=(150, 110))
-        irinterval = wx.TextCtrl(self, -1, "", name='iridium_start', pos=(150, 135))
+        irinterval = wx.TextCtrl(self, -1, "", name='iridium_dt', pos=(150, 135))
 
         # SST Sampling
         wx.StaticText(self, label="SST:", pos=(5, 180))
         sststart = wx.TextCtrl(self, -1, "", name='sst_start', pos=(5, 200))
-        sstinterval = wx.TextCtrl(self, -1, "", name='sst_interval', pos=(5, 225))
+        sstinterval = wx.TextCtrl(self, -1, "", name='sst_dt', pos=(5, 225))
 
         boxes = [gpsstart, gpsinterval, bottomstart, bottominterval, icestart, iceinterval, irstart, irinterval, sststart, sstinterval]
         for box in boxes:
@@ -198,9 +204,9 @@ class SamplingTab(wx.Panel):
         txt.Bind(wx.EVT_KILL_FOCUS, self.enterText)
         txt.SetMaxLength(8)
         if "interval" in txt.GetName():
-            txt.SetHint("Interval: HH:MM:DD")
+            txt.SetHint("Interval: HH:MM:SS")
         else:
-            txt.SetHint("Start: HH:MM:DD")
+            txt.SetHint("Start: HH:MM:SS")
 
     def enterText(self, event):
 
@@ -211,66 +217,66 @@ class SamplingTab(wx.Panel):
             event.Skip()
             return
         if self.TimeCheck(tstr):
-            self.our_config[box.GetName()] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+            self.our_config[box.GetName()] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[4:]
             box.Clear()
-            box.write(tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4])
+            box.write(tstr[:2] + ":" + tstr[2:4] + ":" + tstr[4:])
         event.Skip()
 
-    def IceStart(self, event):
-
-        if self.TimeCheck(self.icestart.GetValue()):
-            tstr = self.icestart.GetValue()
-            self.our_config['ice_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
-
-    def IceSample(self, event):
-
-        if self.TimeCheck(self.iceinterval.GetValue()):
-            tstr = self.iceinterval.GetValue()
-            self.our_config['ice_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
-
-    def BottomStart(self, event):
-
-        if self.TimeCheck(self.bottomstart.GetValue()):
-            tstr = self.bottomstart.GetValue()
-            self.our_config['bottom_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
-
-    def BottomSample(self, event):
-
-        if self.TimeCheck(self.iceinterval.GetValue()):
-            tstr = self.iceinterval.GetValue()
-            self.our_config['bottom_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
-
-    def IrStart(self, event):
-
-        if self.TimeCheck(self.irstart.GetValue()):
-            tstr = self.irstart.GetValue()
-            self.our_config['iridium_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
-
-    def IrSample(self, event):
-
-        if self.TimeCheck(self.irinterval.GetValue()):
-            tstr = self.irinterval.GetValue()
-            self.our_config['iridium_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
-
-    def SSTStart(self, event):
-
-        if self.TimeCheck(self.sststart.GetValue()):
-            tstr = self.sststart.GetValue()
-            self.our_config['sst_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
-
-    def SSTSample(self, event):
-
-        if self.TimeCheck(self.sstinterval.GetValue()):
-            tstr = self.sstinterval.GetValue()
-            self.our_config['sst_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-        event.Skip()
+    # def IceStart(self, event):
+    #
+    #     if self.TimeCheck(self.icestart.GetValue()):
+    #         tstr = self.icestart.GetValue()
+    #         self.our_config['ice_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
+    #
+    # def IceSample(self, event):
+    #
+    #     if self.TimeCheck(self.iceinterval.GetValue()):
+    #         tstr = self.iceinterval.GetValue()
+    #         self.our_config['ice_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
+    #
+    # def BottomStart(self, event):
+    #
+    #     if self.TimeCheck(self.bottomstart.GetValue()):
+    #         tstr = self.bottomstart.GetValue()
+    #         self.our_config['bottom_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
+    #
+    # def BottomSample(self, event):
+    #
+    #     if self.TimeCheck(self.iceinterval.GetValue()):
+    #         tstr = self.iceinterval.GetValue()
+    #         self.our_config['bottom_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
+    #
+    # def IrStart(self, event):
+    #
+    #     if self.TimeCheck(self.irstart.GetValue()):
+    #         tstr = self.irstart.GetValue()
+    #         self.our_config['iridium_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
+    #
+    # def IrSample(self, event):
+    #
+    #     if self.TimeCheck(self.irinterval.GetValue()):
+    #         tstr = self.irinterval.GetValue()
+    #         self.our_config['iridium_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
+    #
+    # def SSTStart(self, event):
+    #
+    #     if self.TimeCheck(self.sststart.GetValue()):
+    #         tstr = self.sststart.GetValue()
+    #         self.our_config['sst_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
+    #
+    # def SSTSample(self, event):
+    #
+    #     if self.TimeCheck(self.sstinterval.GetValue()):
+    #         tstr = self.sstinterval.GetValue()
+    #         self.our_config['sst_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+    #     event.Skip()
 
     def TimeCheck(self, tstr):
 
@@ -289,7 +295,7 @@ class SamplingTab(wx.Panel):
             self.ErrorMsg("Seconds incorrectly formatted!")
             return False
 
-        return tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
+        return True
 
     def ErrorMsg(self, msg):
         wx.MessageBox(msg, 'Formatting Error',
@@ -300,25 +306,22 @@ class CalTab(wx.Panel):
         #wx.Panel.__init__(self, parent)
         super(CalTab, self).__init__(parent, size=(350, 400))   # size doesn't seem to do anything
         panel = wx.Panel(self, -1)
+        self.data_pack = Backend.data_pack
 
         self.InitUI()
 
+
     def InitUI(self):
-        #global data_pack
-        self.data_pack = Backend.data_pack
 
         #dropbox for thermometers
         self.label = wx.StaticText(self, label="Thermometer #1", pos=(50, 30))
         self.label = wx.StaticText(self, label="Thermometer #2", pos=(250, 30))
 
-        # generate a list of calibrated thermometers
-        t_sns = {"": ""}
-        for sn in list(self.data_pack['temp'].index):
-            t_sns[(str(int(sn)).rjust(4,'0'))] = sn
+        if not self.data_pack:
+            path = PUGFrame.OpenFile(self)
+            self.data_pack = backend.ImportData.import_cal_data(self, path)
 
-        # generate a list of calibrated barometers
-        p_sns = list(self.data_pack['pressure'].index)
-        p_sns.insert(0, "")
+        [t_sns, p_sns] = self.instrList(self.data_pack)
 
         # dropboxes for selecting thermometer calibration
         self.combobox1 = wx.ComboBox(self, choices=list(t_sns.keys()), pos=(50, 50))
@@ -333,6 +336,26 @@ class CalTab(wx.Panel):
         self.presbox = wx.ComboBox(self, choices=p_sns, pos=(50, 200))
         self.preslabel = wx.StaticText(self, label='', pos=(50, 230))
         self.Bind(wx.EVT_COMBOBOX, lambda evp: self.TempCombo(evp, t_sns, self.data_pack))
+
+        path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
+        wx.StaticText(self, label="Import New Calibration File", pos=(200, 170))
+        self.read_path = wx.FilePickerCtrl(self, wx.FLP_OPEN, path=path, pos=(200, 190))
+
+        self.btn = wx.Button(self, -1, "Import Calibration", pos=(200, 210))
+        self.btn.Bind(wx.EVT_BUTTON, self.ReadCal)
+
+    def instrList(self, data_pack):
+
+        # generate a list of calibrated thermometers
+        t_sns = {"": ""}
+        for sn in list(self.data_pack['temp'].index):
+            t_sns[(str(int(sn)).rjust(4, '0'))] = sn
+
+        # generate a list of calibrated barometers
+        p_sns = list(self.data_pack['pressure'].index)
+        p_sns.insert(0, "")
+
+        return [t_sns, p_sns]
 
     # for whatever reason, it wouldn't update the output cal date if I made individual functions
     # so one giant one. Fun!
@@ -386,6 +409,22 @@ class CalTab(wx.Panel):
             self.our_config['cal_depth'] = data['pressure'].loc[pmeter, 'KELLER BAR']
         else:
             self.preslabel.SetLabel("")
+
+    def ReadCal(self, event):
+
+        self.data_pack = backend.ImportData.import_cal_data(self, self.read_path.GetPath())
+
+        [t_sns, p_sns] = self.instrList(self.data_pack)
+
+        self.combobox1.Clear()
+        self.combobox2.Clear()
+        self.presbox.Clear()
+
+        self.combobox1.Append(list(t_sns.keys()))
+        self.combobox2.Append(list(t_sns.keys()))
+        self.presbox.Append(p_sns)
+
+
 
 class PUGFrame(wx.Frame):
     def __init__(self, parent, title):
