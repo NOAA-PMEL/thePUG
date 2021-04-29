@@ -1,11 +1,7 @@
 '''
-GUI is the gui elemens for the PUG
+GUI is the gui elements for the PUG
 
 TODO:
-generalize format
-generalize textbox information
-    This is so that if a configuration is read in, it will populate the textboxes with pre-existing information
-    Should hookup with a info template from cft.py
 Maybe a file bar?
 '''
 
@@ -203,7 +199,7 @@ class SamplingTab(wx.Panel):
         #builds our text boxes
         txt.Bind(wx.EVT_KILL_FOCUS, self.enterText)
         txt.SetMaxLength(8)
-        if "interval" in txt.GetName():
+        if "dt" in txt.GetName():
             txt.SetHint("Interval: HH:MM:SS")
         else:
             txt.SetHint("Start: HH:MM:SS")
@@ -222,61 +218,6 @@ class SamplingTab(wx.Panel):
             box.write(tstr[:2] + ":" + tstr[2:4] + ":" + tstr[4:])
         event.Skip()
 
-    # def IceStart(self, event):
-    #
-    #     if self.TimeCheck(self.icestart.GetValue()):
-    #         tstr = self.icestart.GetValue()
-    #         self.our_config['ice_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
-    #
-    # def IceSample(self, event):
-    #
-    #     if self.TimeCheck(self.iceinterval.GetValue()):
-    #         tstr = self.iceinterval.GetValue()
-    #         self.our_config['ice_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
-    #
-    # def BottomStart(self, event):
-    #
-    #     if self.TimeCheck(self.bottomstart.GetValue()):
-    #         tstr = self.bottomstart.GetValue()
-    #         self.our_config['bottom_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
-    #
-    # def BottomSample(self, event):
-    #
-    #     if self.TimeCheck(self.iceinterval.GetValue()):
-    #         tstr = self.iceinterval.GetValue()
-    #         self.our_config['bottom_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
-    #
-    # def IrStart(self, event):
-    #
-    #     if self.TimeCheck(self.irstart.GetValue()):
-    #         tstr = self.irstart.GetValue()
-    #         self.our_config['iridium_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
-    #
-    # def IrSample(self, event):
-    #
-    #     if self.TimeCheck(self.irinterval.GetValue()):
-    #         tstr = self.irinterval.GetValue()
-    #         self.our_config['iridium_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
-    #
-    # def SSTStart(self, event):
-    #
-    #     if self.TimeCheck(self.sststart.GetValue()):
-    #         tstr = self.sststart.GetValue()
-    #         self.our_config['sst_start'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
-    #
-    # def SSTSample(self, event):
-    #
-    #     if self.TimeCheck(self.sstinterval.GetValue()):
-    #         tstr = self.sstinterval.GetValue()
-    #         self.our_config['sst_dt'] = tstr[:2] + ":" + tstr[2:4] + ":" + tstr[:4]
-    #     event.Skip()
 
     def TimeCheck(self, tstr):
 
@@ -339,9 +280,9 @@ class CalTab(wx.Panel):
 
         path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
         wx.StaticText(self, label="Import New Calibration File", pos=(200, 170))
-        self.read_path = wx.FilePickerCtrl(self, wx.FLP_OPEN, path=path, pos=(200, 190))
+        self.read_path = wx.FilePickerCtrl(self, wx.FLP_OPEN, path=path, pos=(200, 200))
 
-        self.btn = wx.Button(self, -1, "Import Calibration", pos=(200, 210))
+        self.btn = wx.Button(self, -1, "Import Calibration", pos=(200, 230))
         self.btn.Bind(wx.EVT_BUTTON, self.ReadCal)
 
     def instrList(self, data_pack):

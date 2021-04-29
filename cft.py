@@ -171,12 +171,20 @@ class Output():
 
             elif len(line) == 2:
 
-                temp = line[0] + str(config_inf[line[1]])
+                if isinstance(config_inf[line[1]], float):
+                    temp = line[0] + "{:3.19f}".format(config_inf[line[1]])
+                else:
+                    temp = line[0] + str(config_inf[line[1]])
+
                 config.append(temp)
 
             elif len(line) == 3:
 
-                temp = line[0] + str(config_inf[line[1]]) + line[2]
+                if isinstance(config_inf[line[1]], float):
+                    temp = line[0] + "{:3.19f}".format(config_inf[line[1]]) + line[2]
+                else:
+                    temp = line[0] + str(config_inf[line[1]]) + line[2]
+
                 config.append(temp)
 
         print(config)

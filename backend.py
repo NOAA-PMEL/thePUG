@@ -1,4 +1,12 @@
 
+'''
+TODO:
+Fix floating number output, still currently in scientific notation
+Move startup to main?
+Ensure dat files are being written and utilized
+    It seems like they aren't with the .exe builds
+'''
+
 import os
 import pickle
 import pandas as pd
@@ -42,12 +50,14 @@ class ImportData:
 
         temp = data[tabs[0]]
         temp = temp[temp['SN'].notna()]
+        tindex= temp.loc[:,'SN'].astype(int)
         t_cal = temp[['SN', 'Date', "A/C1", "B/C2", "C/C3"]].copy()
+        t_cal.index = tindex
 
-        # Slashes(/) play merry hell with our indexing; purge them
+        # Slashes(/) play merry hell with our indexing; PURGE THEM
         t_cal.rename(columns={"A/C1": 'AC1', "B/C2": 'BC2', "C/C3": 'CC3'}, inplace=True)
         #t_cal.apply(pd.to_numeric, errors='coerce')
-        t_cal.set_index(t_cal['SN'], drop=True, inplace=True)
+        #t_cal.set_index(t_cal['SN'], drop=True, inplace=True)
 
         # collect all the rows of data which have bad/incorrectly formatted data
         bad_tdates = list(t_cal[t_cal['Date'].isna()].index)

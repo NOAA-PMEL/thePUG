@@ -11,7 +11,6 @@ It uses Pickle to store previous calibration data
 
 TODO:
 Write cal file
-    Temp user input info
     Watch large numbers
         Might convert to scientific/engineering notation
         Keep them as string as much as possible
@@ -19,8 +18,8 @@ Write cal file
 GUI:
     Warning for bad dates, but keep sensors
     Warning for bad SNs and calibration data
-    Weird default write path
-    Make write path window work correctly
+
+Import pre-existing Configs and populate text boxes
 '''
 
 import pandas as pd
