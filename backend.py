@@ -12,6 +12,8 @@ import pickle
 import pandas as pd
 import wx
 from datetime import date
+import cft
+import re
 
 # class StartDialog(wx.App):
 #
@@ -111,6 +113,58 @@ class ImportData:
         return "P" + str(sn).rjust(4, '0')
 
 
+    def importConfig(self, path):
+
+        config = {}
+        master = cft.TemplateGen.master
+        cinfo = cft.TemplateGen.c_info
+
+        # this monstrosity is a map,
+        # first element in the inner list is the internal key
+        # second element in the inner list is number of rows down outer keys the actual info is
+        # third element in the inner list is where in the split line the desired element will come from
+        c_groups = {'MASTER': [['h_id', 1], ['phone_no', 2], ['release', 3]],
+                    'gps': [['gps_start', 1], ['gps_dt', 2]],
+                    'under_ice': [['ice_start', 1], ['ice_dt', 2]],
+                    'iridium_tx': [['iridium_start', 1], ['iridium_dt', 2]],
+                    'bottom_sample': [['bottom_start', 1], ['bottom_dt', 2]],
+                    'sst_sample': [['sst_start', 1], ['sst_dt', 2]],
+                    'pressure S/N': [['p_sn', 0, 2], ['cal_pres', 1, 1], ['cal_depth', 1, 2]],
+                    'probe1 S/N': [['probe1_sn', 0, 1], ['p1c1', 1, 1], ['p1c2', 1, 3], ['p1c3', 1, 5]],
+                    'probe2 S/N': [['probe2_sn', 0, 1], ['p2c1', 1, 2], ['p2c2', 1, 3], ['p2c3', 1, 5]]
+                    }
+
+        raw = []
+
+        # it's not terribly efficient, but it's easier to read the config into list
+        # and and then break it down into the desired chunks
+        with open(path, "r") as f:
+
+            for line in f.readlines():
+                line = line.replace("\n", "")
+                raw.append(line)
+
+        headings = list(c_groups.keys())
+
+        for n in range(len(raw)):
+
+            # this searchers for the group headings in the config
+            if raw[n] in headings:
+
+                for sect in c_groups[raw[n]]:
+                    config[sect[0]] = raw[n + sect[1]].split("=")[1]
+
+            # this breaks down the calibration portion of the config, which is more complex and difficult to deal with
+            elif raw[n].split(":")[0] in headings:
+
+                for sect in c_groups[raw[n].split(":")[0]]:
+                    delims = re.split("[=:,P]+", raw[n + sect[1]])
+
+                    config[sect[0]] = delims[sect[2]]
+
+        return config
+
+
 
     def startup(self):
 
@@ -155,3 +209,13 @@ class ImportData:
             cal_pack = pickle.load(open(dats_dir + '\\' + file, 'rb'))
 
         return cal_pack
+
+# class ImportConfig:
+#     def __init__(self):
+#
+#         self.template = cft.TemplateGen.master
+#         self.inputs = cft.TemplateGen.c_info
+#
+#     def readConfig(self, config_path):
+
+

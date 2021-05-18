@@ -4,6 +4,7 @@ also has a test write function
 
 TODO:
 Generalize the sensors so that if new sensors are added it is easy to expand this program
+Unify variable names to harmonize variables and input titles
 '''
 
 from dataclasses import dataclass
@@ -65,7 +66,6 @@ class TemplateGen():
         [",c3=", "p2c3", "\n"],
         ["~"]
     ]
-
 
     c_info = {
         "hid": "",
@@ -199,7 +199,7 @@ class Output():
                 f.write(line)
 
 
-class SelfTests():
+class SelfTests:
 
     @classmethod
     def dummy_filled(self):

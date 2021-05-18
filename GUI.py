@@ -8,12 +8,9 @@ Maybe a file bar?
 
 import wx
 from pubsub import pub
-import pandas
-import pickle
 import os
 import cft
 import backend
-import copy
 
 # BaseTab is for entry of basic configuration information: ID, date, phone number
 # also is the location of the write path and import calibration path
@@ -52,14 +49,16 @@ class BaseTab(wx.Panel):
 
         wx.StaticText(self, label="Configuration Write Location", pos=(200, 10))
         self.path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
-        # self.write_path = wx.FilePickerCtrl(self, wx.FLP_SAVE | wx.FLP_OVERWRITE_PROMPT | wx.FLP_SMALL,
-        #                                     path=(path + "\\config.txt"), pos=(200, 30))
         self.out_disp = wx.TextCtrl(self, -1, str(self.path), pos=(200,30))
 
         self.get_path = wx.Button(self, -1, "...", pos=(320, 30))
         self.get_path.Bind(wx.EVT_BUTTON, self.getWritePath)
         self.btn = wx.Button(self, -1, "Write Configuration", pos=(200, 60))
         self.btn.Bind(wx.EVT_BUTTON, self.WriteConfig)
+
+        wx.StaticText(self, label="Import Existing Configuration File", pos=(200, 150))
+        self.import_config = wx.Button(self, -1, "Import", pos=(200, 170))
+        self.import_config.Bind(wx.EVT_BUTTON, self.ImportConfig)
 
     def getWritePath(self, event):
 
@@ -97,6 +96,27 @@ class BaseTab(wx.Panel):
                           wx.OK | wx.ICON_INFORMATION)
         else:
             cft.Output.WriteConfig(cft.Output, self.our_config, self.out_disp.GetValue())
+
+    def ImportConfig(self, event):
+
+        with wx.FileDialog(self, message="Open Config",
+                            wildcard=".txt files (*.txt)|*.txt",
+                            style=wx.FD_OPEN,
+                            defaultDir=self.path) as fileDialog:
+
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+
+            new_path = fileDialog.GetPath()
+
+        config = backend.ImportData.importConfig(self, new_path)
+
+        self.id.SetLabel(config['h_id'])
+        self.phone.SetLabel(config['phone_no'])
+        self.rel_date.SetLabel(config['release'])
+
+        pub.sendMessage('load_config', message=config)
+
 
     def CheckIDFormat(self, event):
 
@@ -158,6 +178,7 @@ class SamplingTab(wx.Panel):
     def __init__(self, parent):
         #wx.Panel.__init__(self, parent)
         super(SamplingTab, self).__init__(parent, size=(350, 400))   # size doesn't seem to do anything
+        pub.subscribe(self.updateSampling, "load_config")
         panel = wx.Panel(self, -1)
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.our_config = Backend.our_config
@@ -191,8 +212,8 @@ class SamplingTab(wx.Panel):
         sststart = wx.TextCtrl(self, -1, "", name='sst_start', pos=(5, 200))
         sstinterval = wx.TextCtrl(self, -1, "", name='sst_dt', pos=(5, 225))
 
-        boxes = [gpsstart, gpsinterval, bottomstart, bottominterval, icestart, iceinterval, irstart, irinterval, sststart, sstinterval]
-        for box in boxes:
+        self.boxes = [gpsstart, gpsinterval, bottomstart, bottominterval, icestart, iceinterval, irstart, irinterval, sststart, sstinterval]
+        for box in self.boxes:
             self.buildTxtBox(box)
 
     def buildTxtBox(self, txt):
@@ -203,6 +224,19 @@ class SamplingTab(wx.Panel):
             txt.SetHint("Interval: HH:MM:SS")
         else:
             txt.SetHint("Start: HH:MM:SS")
+
+    def updateSampling(self, message):
+
+        labels = ['gps_start', 'gps_dt',
+                  'ice_start', 'ice_dt',
+                  'iridium_start', 'iridium_dt',
+                  'bottom_start', 'bottom_dt',
+                  'sst_start', 'sst_dt'
+                  ]
+
+        for n in range(len(self.boxes)):
+
+            self.boxes[n].SetLabel(message[labels[n]])
 
     def enterText(self, event):
 
@@ -224,7 +258,7 @@ class SamplingTab(wx.Panel):
         tstr.replace(':', '')
 
         # hours
-        if not (24 > int(tstr[:2]) >= 0):
+        if not (25 > int(tstr[:2]) >= 0):
             self.ErrorMsg("Hours incorrectly formatted!")
             return False
         # minutes
@@ -246,6 +280,7 @@ class CalTab(wx.Panel):
     def __init__(self, parent):
         #wx.Panel.__init__(self, parent)
         super(CalTab, self).__init__(parent, size=(350, 400))   # size doesn't seem to do anything
+        pub.subscribe(self.updateCals, "load_config")
         panel = wx.Panel(self, -1)
         self.data_pack = Backend.data_pack
 
@@ -297,6 +332,32 @@ class CalTab(wx.Panel):
         p_sns.insert(0, "")
 
         return [t_sns, p_sns]
+
+    def updateCals(self, message):
+
+        t_sns, p_sns = self.instrList(self.data_pack)
+
+        tp1 = str(int(message['probe1_sn'])).zfill(4)
+        if tp1 not in t_sns:
+            self.ErrorMsg("Calibaration data for " + tp1 + " not on file!")
+        else:
+            self.combobox1.SetValue(tp1)
+
+        tp2 = str(int(message['probe2_sn'])).zfill(4)
+        if tp2 not in t_sns:
+            self.ErrorMsg("Calibaration data for " + tp2 + " not on file!")
+        else:
+            self.combobox2.SetValue(tp2)
+
+        pp = 'P' + message['p_sn']
+        if pp not in p_sns:
+            self.ErrorMsg("Calibaration data for " + pp + " not on file!")
+        else:
+            self.presbox.SetValue(pp)
+
+    def ErrorMsg(self, msg):
+        wx.MessageBox(msg, '',
+                      wx.OK | wx.ICON_INFORMATION)
 
     # for whatever reason, it wouldn't update the output cal date if I made individual functions
     # so one giant one. Fun!
