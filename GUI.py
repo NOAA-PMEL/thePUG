@@ -3,6 +3,8 @@ GUI is the gui elements for the PUG
 
 TODO:
 Maybe a file bar?
+
+Importing a config file causes
 '''
 
 
@@ -111,9 +113,15 @@ class BaseTab(wx.Panel):
 
         config = backend.ImportData.importConfig(self, new_path)
 
-        self.id.SetLabel(config['h_id'])
-        self.phone.SetLabel(config['phone_no'])
-        self.rel_date.SetLabel(config['release'])
+        self.id.SetValue(config['h_id'])
+        self.id.SetFocus()
+        self.phone.SetValue(config['phone_no'])
+        self.phone.SetFocus()
+        self.rel_date.SetValue(config['release'])
+        self.rel_date.SetFocus()
+        self.id.SetFocus()
+
+        #wx.PostEvent(self.CheckIDFormat)
 
         pub.sendMessage('load_config', message=config)
 
@@ -149,20 +157,31 @@ class BaseTab(wx.Panel):
         event.Skip()
 
     def CheckDateFormat(self, event):
+
         rdate = self.rel_date.GetValue()
         if rdate == "":
             event.Skip()
             return
 
-        rdate.replace("/", '')
+        rdate = rdate.replace("/", '')
 
-        if len(rdate) == 6:
-            rdate = rdate[:2] + "/" + rdate[2:4] + "/" + rdate[4:]
-            self.rel_date.Clear()
-            self.rel_date.write(rdate)
-            self.our_config['release'] = self.rel_date.GetValue()
-        else:
+        # actually check date
+        if len(rdate) != 6:
             self.ErrorMsg("Release date incorrectly formatted!")
+            event.Skip()
+
+        if 0 > int(rdate[:2]) > 12:
+            self.ErrorMsg("Release date incorrectly formatted!")
+            event.Skip()
+        if 0 > int(rdate[2:4]) > 32:
+            self.ErrorMsg("Release date incorrectly formatted!")
+            event.Skip()
+
+        rdate = rdate[:2] + "/" + rdate[2:4] + "/" + rdate[4:]
+        self.rel_date.Clear()
+        self.rel_date.write(rdate)
+        self.our_config['release'] = self.rel_date.GetValue()
+
         event.Skip()
 
 
@@ -236,7 +255,10 @@ class SamplingTab(wx.Panel):
 
         for n in range(len(self.boxes)):
 
-            self.boxes[n].SetLabel(message[labels[n]])
+            self.boxes[n].SetValue(message[labels[n]])
+            self.boxes[n].SetFocus()
+
+        self.boxes[0].SetFocus()
 
     def enterText(self, event):
 
@@ -283,6 +305,7 @@ class CalTab(wx.Panel):
         pub.subscribe(self.updateCals, "load_config")
         panel = wx.Panel(self, -1)
         self.data_pack = Backend.data_pack
+        self.our_config = Backend.our_config
 
         self.InitUI()
 
@@ -335,6 +358,9 @@ class CalTab(wx.Panel):
 
     def updateCals(self, message):
 
+        # this uses the new serial number to gather calibration data from the cal file
+        # so if the calibration data in the config is out of date, it will be updated
+
         t_sns, p_sns = self.instrList(self.data_pack)
 
         tp1 = str(int(message['probe1_sn'])).zfill(4)
@@ -342,18 +368,31 @@ class CalTab(wx.Panel):
             self.ErrorMsg("Calibaration data for " + tp1 + " not on file!")
         else:
             self.combobox1.SetValue(tp1)
+            self.our_config['probe1_sn'] = tp1
+            self.our_config["p1c1"] = self.data_pack['temp'].loc[int(tp1), 'AC1']
+            self.our_config["p1c2"] = self.data_pack['temp'].loc[int(tp1), 'BC2']
+            self.our_config["p1c3"] = self.data_pack['temp'].loc[int(tp1), 'CC3']
 
         tp2 = str(int(message['probe2_sn'])).zfill(4)
         if tp2 not in t_sns:
             self.ErrorMsg("Calibaration data for " + tp2 + " not on file!")
         else:
             self.combobox2.SetValue(tp2)
+            self.our_config['probe2_sn'] = tp2
+            self.our_config['p2c1'] = self.data_pack['temp'].loc[int(tp2), 'AC1']
+            self.our_config['p2c2'] = self.data_pack['temp'].loc[int(tp2), 'BC2']
+            self.our_config['p2c3'] = self.data_pack['temp'].loc[int(tp2), 'CC3']
+
 
         pp = 'P' + message['p_sn']
         if pp not in p_sns:
             self.ErrorMsg("Calibaration data for " + pp + " not on file!")
         else:
             self.presbox.SetValue(pp)
+            self.our_config['p_sn'] = pp
+            self.our_config['cal_pres'] = self.data_pack['pressure'].loc[pp, 'KELLER BAR']
+            self.our_config['cal_depth'] = self.data_pack['pressure'].loc[pp, 'REF SBE METERS']
+
 
     def ErrorMsg(self, msg):
         wx.MessageBox(msg, '',
@@ -362,8 +401,7 @@ class CalTab(wx.Panel):
     # for whatever reason, it wouldn't update the output cal date if I made individual functions
     # so one giant one. Fun!
     def TempCombo(self, event, sns, data):
-        #global our_config
-        self.our_config = Backend.our_config
+
 
         # collect our inputs
         tmeter1, tmeter2, pmeter = "", "", ""
