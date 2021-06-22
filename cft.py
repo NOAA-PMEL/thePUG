@@ -4,10 +4,34 @@ also has a test write function
 
 TODO:
 Generalize the sensors so that if new sensors are added it is easy to expand this program
+Unify variable names to harmonize variables and input titles
 '''
 
-class TemplateGen():
+from dataclasses import dataclass
+import pandas as pd
 
+@dataclass
+class ConfigData:
+    # pretty well what it says on the tin, it takes the config data dict and unpacks it
+    # should have attrs:
+    # 'p cal errors': list()
+    # 'p date errors': list()
+    # 'pressure': pd.DataFrame
+    # 't cal errors': set()
+    # 't date errors': list()
+    # 't serial errors': list()
+    # 'temp': pd.DataFrame
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
+# class Formats():
+#
+#     basic =
+
+class TemplateGen():
 
     master = [
         ["MASTER\n"],
@@ -43,7 +67,6 @@ class TemplateGen():
         ["~"]
     ]
 
-
     c_info = {
         "hid": "",
         "phone_no": "",
@@ -66,6 +89,33 @@ class TemplateGen():
         "p1c2": "",
         "p1c3": "",
         "probe2_sn": "",
+        "p2c1": "",
+        "p2c2": "",
+        "p2c3": ""
+    }
+
+    human_readable = {
+        "hid": "ID Number",
+        "phone_no": "Phone number",
+        "release": "Release Date",
+        "gps_start": "GPS Start",
+        "gps_dt": "GSP Interval",
+        "ice_start": "Under Ice Start",
+        "ice_dt": "Under Ice Interval",
+        "iridium_start": "Iridium Start",
+        "iridium_dt": "Iridium Interval",
+        "bottom_start": "Bottom Sample Start",
+        "bottom_dt": "Bottom Sample Interval",
+        "sst_start": "SST Start",
+        "sst_dt": "SST Interval",
+        "p_sn": "Pressure Sensor",
+        "cal_pres": "",
+        "cal_depth": "",
+        "probe1_sn": "Thermometer #1",
+        "p1c1": "",
+        "p1c2": "",
+        "p1c3": "",
+        "probe2_sn": "Thermometer #2",
         "p2c1": "",
         "p2c2": "",
         "p2c3": ""
@@ -99,14 +149,63 @@ class TemplateGen():
         "0.000000162236356555533"
         ]
 
+class Output():
 
-class SelfTests():
+    def WriteConfig(self, config_info, path):
+
+        config = self.PopulateConfig(self, config_info)
+        self.WriteFile(self, config, path)
+
+    def PopulateConfig(self, config_inf):
+
+        items = list(config_inf.keys())
+        #master = TemplateGen.master
+
+        config = []
+
+        for line in TemplateGen.master:
+
+            if len(line) == 1:
+
+                config.append(line[0])
+
+            elif len(line) == 2:
+
+                if isinstance(config_inf[line[1]], float):
+                    temp = line[0] + "{:3.19f}".format(config_inf[line[1]])
+                else:
+                    temp = line[0] + str(config_inf[line[1]])
+
+                config.append(temp)
+
+            elif len(line) == 3:
+
+                if isinstance(config_inf[line[1]], float):
+                    temp = line[0] + "{:3.19f}".format(config_inf[line[1]]) + line[2]
+                else:
+                    temp = line[0] + str(config_inf[line[1]]) + line[2]
+
+                config.append(temp)
+
+        print(config)
+        return config
+
+    def WriteFile(self, pop_list, path):
+
+        with open(path, "w") as f:
+
+            for line in pop_list:
+
+                f.write(line)
+
+
+class SelfTests:
 
     @classmethod
     def dummy_filled(self):
 
         filled_dummy = []
-        c_info = TemplateGen.c_info(self)
+        c_info = TemplateGen.c_info()
         c_items = list(c_info.keys())
 
         for n in range(len(c_items)):
