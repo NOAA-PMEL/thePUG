@@ -25,7 +25,7 @@ import GUI
 def main():
     # # some basic start up stuff, check if there is a .dat file repository
 
-    app = GUI.PUGApp()
+    app = GUI.PUGApp(redirect=True, filename='GUI_logfile.txt')
     app.MainLoop()
 
 if __name__ == '__main__':

@@ -1,10 +1,8 @@
 
 '''
 TODO:
-Fix floating number output, still currently in scientific notation
 Move startup to main?
-Ensure dat files are being written and utilized
-    It seems like they aren't with the .exe builds
+
 '''
 
 import os
@@ -129,7 +127,7 @@ class ImportData:
                     'iridium_tx': [['iridium_start', 1], ['iridium_dt', 2]],
                     'bottom_sample': [['bottom_start', 1], ['bottom_dt', 2]],
                     'sst_sample': [['sst_start', 1], ['sst_dt', 2]],
-                    'pressure S/N': [['p_sn', 0, 2], ['cal_pres', 1, 1], ['cal_depth', 1, 2]],
+                    'pressure S/N': [['p_sn', 0, 1], ['cal_pres', 1, 1], ['cal_depth', 1, 2]],
                     'probe1 S/N': [['probe1_sn', 0, 1], ['p1c1', 1, 1], ['p1c2', 1, 3], ['p1c3', 1, 5]],
                     'probe2 S/N': [['probe2_sn', 0, 1], ['p2c1', 1, 2], ['p2c2', 1, 3], ['p2c3', 1, 5]]
                     }
@@ -158,12 +156,11 @@ class ImportData:
             elif raw[n].split(":")[0] in headings:
 
                 for sect in c_groups[raw[n].split(":")[0]]:
-                    delims = re.split("[=:,P]+", raw[n + sect[1]])
+                    delims = re.split("[=:,P]+", raw[n + sect[1]].replace(' ', ''))
 
                     config[sect[0]] = delims[sect[2]]
 
         return config
-
 
 
     def startup(self):

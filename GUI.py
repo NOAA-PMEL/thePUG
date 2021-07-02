@@ -4,19 +4,276 @@ GUI is the gui elements for the PUG
 TODO:
 Maybe a file bar?
 
-Importing a config file causes
+ComsTab
+    Cancel button
+    Automatic infinite loop detection and exiting
+    Status labels are not being shown. Why?
+    Pressing the read button a second time will produce an empty message box
+    Often hangs if requesting a second I/O operation
+
 '''
 
 
 import wx
 from pubsub import pub
 import os
+import time
+import serial
+import serial.tools.list_ports as list_ports
 import cft
 import backend
 
+
+# Comstab is a monstrously large class that deals with the serial I/O functions
+# it's also a bit of a mess that could use some work
+class ComsTab(wx.Panel):
+    def __init__(self, parent):
+        #wx.Panel.__init__(self, parent)
+        super(ComsTab, self).__init__(parent, size=(350, 400))   # size doesn't seem to do anything
+        panel = wx.Panel(self, -1)
+        self.label = wx.StaticText(self, label="Active COM Ports", pos=(50, 40))
+        self.comslist = wx.ComboBox(self, pos=(50, 60))
+        self.status = wx.StaticText(self,  pos=(50, 90))
+        self.path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
+
+        self.our_config = Backend.our_config
+
+        #initialize our serial port
+        self.sp = serial.Serial()
+
+        # intialize our cancel fnc
+
+        self.InitUI()
+
+    def InitUI(self):
+
+        #dropbox for active comports
+        self.readComs()
+        self.comslist.Bind(wx.EVT_COMBOBOX, self.setCom)
+
+        self.refreshBtn = wx.Button(self, label="Refresh", pos=(170, 60))
+        self.refreshBtn.Bind(wx.EVT_BUTTON, self.updateComs)
+
+        self.readConfig = wx.Button(self, label="Read Config", pos=(50, 120))
+        self.readConfig.Disable()
+        self.readConfig.Bind(wx.EVT_BUTTON, self.configDisp)
+
+        self.writeConfig = wx.Button(self, label="Write Config", pos=(50, 150))
+        self.writeConfig.Bind(wx.EVT_BUTTON, self.writeToPuF)
+        self.writeConfig.Disable()
+
+    def readComs(self):
+        #generates a list of active com ports for the dropbox
+
+        clist = [str(x) for x in list_ports.comports()]
+        self.comslist.SetItems(clist)
+
+        #set status
+        if len(clist) > 0:
+            self.status.SetLabel("Ready to connect")
+        else:
+            self.status.SetLabel("No COM ports available!")
+
+
+    def updateComs(self, event):
+        #the button event for the coms refresh button
+
+        self.readComs()
+
+    def setCom(self, event):
+        # set active com port
+        # this should deal with com ports which are already open, but I won't garauntee that
+        # also, time out is something that might need to be fiddled with as computer clock speed may
+        # mess with the ability of the interface to read and write
+
+        self.sp.baudrate = 9600
+        self.sp.timeout = 5
+        self.sp.port = self.comslist.GetValue()[:4]
+
+        if self.sp.is_open:
+            self.sp.close()
+
+        self.sp.open()
+
+        self.readConfig.Enable()
+        self.writeConfig.Enable()
+        self.status.SetLabel("COM connected")
+
+    def string_pusher(self, sp, message):
+        # this function handles strings
+        # strings need to be written one character at a time
+        # other wise the PuF will only recieve the last character
+
+        for letter in message:
+            sp.flush()
+            sp.write(bytearray(letter, 'ascii'))
+            time.sleep(0.01)
+
+
+    def y_press(self, com):
+        # simulates pressing the 'y' key
+        com.flush()
+        com.write(bytearray('y', 'ascii'))
+
+    def readFromPuF(self):
+
+            # navigates to the menu and uses the 'status' command to read the config off the PuF
+
+        self.status.SetLabel('Connecting...')
+        log = ""
+        logger = False
+        self.y_press(self.sp)
+
+        while True:
+
+        # this is a pretty crude method: it just pounds the 'y' key until a "POP-UP>>>" caret indicator appears
+        # This creates occational issues where y key presses will be sent with the 'load' or 'status' command,
+        # charachters are dropped or the GUI pushes a config when the 'load' command hasn't been accepted
+        # given the lack of feedback and limitation of serial.readline mean that checking for these faults in real time
+        # is difficult
+        # the popups don't send any signal that they are expecting input (that I'm aware of)
+        # if they did, that could be used to make a more sophisticated writing method
+
+            t0 = time.time()
+            a = self.sp.readline()
+            print(a)
+
+            # POP-UP gets sent back through serial.readline after a bad command has been sent, annoyingly, so we
+            # simulate 'y' key presses until it appears
+            if 'POP-UP' in str(a):
+                self.status.SetLabel('Reading Config')
+                self.string_pusher(self.sp, ' status\n')
+                continue
+            # '~' is the EOF character for configs
+            elif "~" in str(a):
+                self.status.SetLabel('Completed')
+                return log
+            # pound the 'y' key until it reacts
+            else:
+                self.status.SetLabel('Navigating menu')
+                time.sleep(.1)
+                self.y_press(self.sp)
+
+            # 'header' is the first line of a config, so start logging once it appears
+            if "Header" in str(a):
+                self.status.SetLabel('Logging')
+                logger = True
+            # log stuff
+            if logger:
+                log = log + str(a)
+
+        return
+
+    def writeToPuF(self, event):
+    # this was seperated out from writeToPuF in order to allow it to be restarted if the config loads badly\
+    # has all the same problems noted in the readFromPuF function
+
+        c_str = ""
+        self.status.SetLabel("Gathering config")
+
+    # this is from BaseTab.WriteConfig; it could be rearange so the code isn't repeated
+        missing = []
+        k_list = list(self.our_config.keys())
+        # Error checking is done in the GUI as data is input
+        for n in range(len(k_list)):
+            if self.our_config[k_list[n]] == '':
+                missing.append(k_list[n])
+
+        if len(missing) >= 1:
+            miss_str = ""
+            for n in missing:
+                if cft.TemplateGen.human_readable[n] != "":
+                    miss_str += cft.TemplateGen.human_readable[n] + ", "
+
+            self.ComsErrorMsg("Missing " + miss_str)
+            return
+
+        else:
+            config_list = cft.Output.PopulateConfig(self, self.our_config)
+            c_str = "".join(config_list)
+            c_str.replace('\n', '\r\n')
+
+        self.y_press(self.sp)
+
+        while True:
+
+            a = self.sp.readline()
+            print(a)
+
+            # POP-UP gets sent back through serial.readline after a bad command has been sent, annoyingly, so we
+            # simulate 'y' key presses until it appears
+            if 'POP-UP' in str(a):
+                self.status.SetLabel('Loading')
+                self.string_pusher(self.sp, ' load\n')
+                self.string_pusher(self.sp, c_str)
+
+                # PuF will return a '???' with a bad input string, so if that happens, try again
+                a = self.sp.readline()
+                if "???" in str(a):
+                    self.status.SetLabel("Retrying")
+                    continue
+
+                self.status.SetLabel("Loaded")
+                break
+            else:
+                # pound the 'y' key until it reacts
+                time.sleep(.1)
+                self.status.SetLabel('Navigating menu')
+                self.y_press(self.sp)
+
+        # once the config has been loaded, check to make sure it has been saved correctly
+        self.status.SetLabel("Checking")
+        log = self.readFromPuF()
+
+        for ele in config_list:
+            if "=" not in ele:
+                continue
+            else:
+                temp = ele.split("=")
+                if temp[-1][:-1] not in log:
+                    self.status.SetLabel("Failed! Retrying")
+                    self.writeToPuF()
+
+        return
+
+    #def readwriteCheck(self, in_str):
+
+    def readableCfg(self, msg):
+        # simple formatting function to make our log string human readable
+
+        configStr = ''.join(msg)
+        configStr = configStr.lower()
+        configStr = configStr.replace("b'", '')
+        configStr = configStr.replace("\'", '')
+        configStr = configStr.replace("\\r", '')
+        configStr = configStr.replace("\r", '')
+        configStr = configStr.replace("\\t", '')
+        configStr = configStr.replace("\\n", '\n')
+
+        return configStr
+
+    def configDisp(self, event):
+        # generates a display box with the config read off the board
+
+        msg = self.readFromPuF()
+
+        if not isinstance(msg, (str, list)):
+            return
+
+        configStr = self.readableCfg(msg)
+
+        wx.MessageBox(configStr, 'Current Config',
+                      wx.OK | wx.ICON_INFORMATION)
+
+    def ComsErrorMsg(self, msg):
+        wx.MessageBox(msg, '',
+                      wx.OK | wx.ICON_INFORMATION)
+
+
+    # for whatever reason, it wouldn't update the output cal date if I made individual functions
+
 # BaseTab is for entry of basic configuration information: ID, date, phone number
 # also is the location of the write path and import calibration path
-
 class BaseTab(wx.Panel):
     def __init__(self, parent):
         #wx.Panel.__init__(self, parent)
@@ -478,11 +735,13 @@ class PUGFrame(wx.Frame):
         tab1 = BaseTab(nb)
         tab2 = SamplingTab(nb)
         tab3 = CalTab(nb)
+        tab4 = ComsTab(nb)
 
         # Add the windows and name them
         nb.AddPage(tab1, "Basic Info")
         nb.AddPage(tab2, "Sampling")
         nb.AddPage(tab3, "Calibrations")
+        nb.AddPage(tab4, "Serial I/O Tab")
 
         # menubar = wx.MenuBar()
         #
