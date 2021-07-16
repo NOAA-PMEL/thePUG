@@ -23,6 +23,22 @@ import serial.tools.list_ports as list_ports
 import cft
 import backend
 
+#import logging
+
+#debug logging
+
+#logger = logging.getLogger('serial') #Create a log with the same name as the script that created it
+#logger.setLevel('DEBUG')
+
+#Create handlers and set their logging level
+#filehandler_dbg = logging.FileHandler(logger.name + '-debug.log', mode='w')
+#filehandler_dbg.setLevel('DEBUG')
+#streamformatter = logging.Formatter(fmt='%(levelname)s:\t%(threadName)s:\t%(funcName)s:\t\t%(message)s', datefmt='%H:%M:%S') #We only want to see certain parts of the message
+#Apply formatters to handlers
+#filehandler_dbg.setFormatter(streamformatter)
+#Add handlers to logger
+#logger.addHandler(filehandler_dbg)
+
 
 # Comstab is a monstrously large class that deals with the serial I/O functions
 # it's also a bit of a mess that could use some work
@@ -34,7 +50,7 @@ class ComsTab(wx.Panel):
         self.label = wx.StaticText(self, label="Active COM Ports", pos=(50, 40))
         self.comslist = wx.ComboBox(self, pos=(50, 60))
         self.status = wx.StaticText(self,  pos=(50, 90))
-        self.path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
+        #self.path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
 
         self.our_config = Backend.our_config
 
@@ -47,6 +63,7 @@ class ComsTab(wx.Panel):
 
     def InitUI(self):
 
+        #logger.info('Initializing UI method')
         #dropbox for active comports
         self.readComs()
         self.comslist.Bind(wx.EVT_COMBOBOX, self.setCom)
@@ -62,7 +79,11 @@ class ComsTab(wx.Panel):
         self.writeConfig.Bind(wx.EVT_BUTTON, self.writeToPuF)
         self.writeConfig.Disable()
 
+        #logger.info('UI generated')
+
     def readComs(self):
+
+        #logger.info('Starting COMS method')
         #generates a list of active com ports for the dropbox
 
         clist = [str(x) for x in list_ports.comports()]
@@ -74,6 +95,7 @@ class ComsTab(wx.Panel):
         else:
             self.status.SetLabel("No COM ports available!")
 
+        #logger.info('Finished COMS method')
 
     def updateComs(self, event):
         #the button event for the coms refresh button
@@ -104,6 +126,8 @@ class ComsTab(wx.Panel):
         # strings need to be written one character at a time
         # other wise the PuF will only recieve the last character
 
+        #logger.info(['Writing ', message, ' to serial'])
+
         for letter in message:
             sp.flush()
             sp.write(bytearray(letter, 'ascii'))
@@ -112,6 +136,7 @@ class ComsTab(wx.Panel):
 
     def y_press(self, com):
         # simulates pressing the 'y' key
+        #logger.info('Pressing y key')
         com.flush()
         com.write(bytearray('y', 'ascii'))
 
@@ -119,6 +144,7 @@ class ComsTab(wx.Panel):
 
             # navigates to the menu and uses the 'status' command to read the config off the PuF
 
+        #logger.info('Reading from serial')
         self.status.SetLabel('Connecting...')
         log = ""
         logger = False
@@ -136,7 +162,13 @@ class ComsTab(wx.Panel):
 
             t0 = time.time()
             a = self.sp.readline()
-            print(a)
+            #print(a)
+            #logger.info(['Received from serial: ', a])
+
+            if not a.isascii():
+                self.status.SetLabel('Aborting')
+                self.ComsErrorMsg('Bad character returned; update your firmware!')
+                break
 
             # POP-UP gets sent back through serial.readline after a bad command has been sent, annoyingly, so we
             # simulate 'y' key presses until it appears
@@ -169,6 +201,8 @@ class ComsTab(wx.Panel):
     # has all the same problems noted in the readFromPuF function
 
         c_str = ""
+
+        #logger.info('Attempting to write to serial')
         self.status.SetLabel("Gathering config")
 
     # this is from BaseTab.WriteConfig; it could be rearange so the code isn't repeated
@@ -198,7 +232,11 @@ class ComsTab(wx.Panel):
         while True:
 
             a = self.sp.readline()
-            print(a)
+            #print(a)
+            if not a.isascii():
+                self.status.SetLabel('Aborting')
+                self.ComsErrorMsg('Bad character returned; update your firmware!')
+                break
 
             # POP-UP gets sent back through serial.readline after a bad command has been sent, annoyingly, so we
             # simulate 'y' key presses until it appears
