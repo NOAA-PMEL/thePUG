@@ -49,9 +49,9 @@ class ComsTab(wx.Panel):
         panel = wx.Panel(self, -1)
         self.label = wx.StaticText(self, label="Active COM Ports", pos=(50, 40))
         self.comslist = wx.ComboBox(self, pos=(50, 60))
-        self.status = wx.StaticText(self,  pos=(50, 90))
-        #self.path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
-
+        self.status = wx.StaticText(self, pos=(50, 90))
+        self.path = "\\".join(os.path.abspath(__file__).split("\\")[:-1])
+        self.cancelFlag = False
         self.our_config = Backend.our_config
 
         #initialize our serial port
@@ -60,6 +60,7 @@ class ComsTab(wx.Panel):
         # intialize our cancel fnc
 
         self.InitUI()
+
 
     def InitUI(self):
 
@@ -78,6 +79,10 @@ class ComsTab(wx.Panel):
         self.writeConfig = wx.Button(self, label="Write Config", pos=(50, 150))
         self.writeConfig.Bind(wx.EVT_BUTTON, self.writeToPuF)
         self.writeConfig.Disable()
+
+        self.cancelBtn = wx.Button(self, label='Cancel', pos=(170, 120))
+        self.cancelBtn.Bind(wx.EVT_BUTTON, self.cancelEvt)
+        self.cancelBtn.Disable()
 
         #logger.info('UI generated')
 
@@ -160,9 +165,12 @@ class ComsTab(wx.Panel):
         # the popups don't send any signal that they are expecting input (that I'm aware of)
         # if they did, that could be used to make a more sophisticated writing method
 
-            t0 = time.time()
+            wx.Yield()
+            if self.cancelFlag:
+                return
+
             a = self.sp.readline()
-            #print(a)
+            #print(str(a))
             #logger.info(['Received from serial: ', a])
 
             if not a.isascii():
@@ -183,7 +191,7 @@ class ComsTab(wx.Panel):
             # pound the 'y' key until it reacts
             else:
                 self.status.SetLabel('Navigating menu')
-                time.sleep(.1)
+                time.sleep(.5)
                 self.y_press(self.sp)
 
             # 'header' is the first line of a config, so start logging once it appears
@@ -194,12 +202,46 @@ class ComsTab(wx.Panel):
             if logger:
                 log = log + str(a)
 
-        return
+    def readableCfg(self, msg):
+        # simple formatting function to make our log string human readable
+
+        configStr = ''.join(msg)
+        configStr = configStr.lower()
+        configStr = configStr.replace("b'", '')
+        configStr = configStr.replace("\'", '')
+        configStr = configStr.replace("\\r", '')
+        configStr = configStr.replace("\r", '')
+        configStr = configStr.replace("\\t", '')
+        configStr = configStr.replace("\\n", '\n')
+
+        return configStr
+
+    def configDisp(self, event):
+        # generates a display box with the config read off the board
+
+        self.pressBtn()
+        msg = self.readFromPuF()
+
+        if self.cancelFlag:
+            self.exitProc()
+            return
+
+        if not isinstance(msg, (str, list)):
+            self.exitProc()
+            return
+
+        configStr = self.readableCfg(msg)
+
+        wx.MessageBox(configStr, 'Current Config',
+                      wx.OK | wx.ICON_INFORMATION)
+
+        self.exitProc()
 
     def writeToPuF(self, event):
     # this was seperated out from writeToPuF in order to allow it to be restarted if the config loads badly\
     # has all the same problems noted in the readFromPuF function
 
+        self.pressBtn()
         c_str = ""
 
         #logger.info('Attempting to write to serial')
@@ -231,11 +273,17 @@ class ComsTab(wx.Panel):
 
         while True:
 
+            wx.Yield()
+            if self.cancelFlag:
+                self.exitProc()
+                return
+
             a = self.sp.readline()
             #print(a)
             if not a.isascii():
                 self.status.SetLabel('Aborting')
                 self.ComsErrorMsg('Bad character returned; update your firmware!')
+                self.exitProc()
                 break
 
             # POP-UP gets sent back through serial.readline after a bad command has been sent, annoyingly, so we
@@ -264,6 +312,10 @@ class ComsTab(wx.Panel):
         log = self.readFromPuF()
 
         for ele in config_list:
+            if self.cancelFlag:
+                self.exitProc()
+                return
+
             if "=" not in ele:
                 continue
             else:
@@ -272,41 +324,27 @@ class ComsTab(wx.Panel):
                     self.status.SetLabel("Failed! Retrying")
                     self.writeToPuF()
 
-        return
+        self.exitProc()
 
-    #def readwriteCheck(self, in_str):
+    def cancelEvt(self, event):
+        self.status.SetLabel('Cancelled')
+        self.cancelFlag = True
 
-    def readableCfg(self, msg):
-        # simple formatting function to make our log string human readable
+    def exitProc(self):
+        self.readConfig.Enable()
+        self.writeConfig.Enable()
+        self.cancelBtn.Disable()
 
-        configStr = ''.join(msg)
-        configStr = configStr.lower()
-        configStr = configStr.replace("b'", '')
-        configStr = configStr.replace("\'", '')
-        configStr = configStr.replace("\\r", '')
-        configStr = configStr.replace("\r", '')
-        configStr = configStr.replace("\\t", '')
-        configStr = configStr.replace("\\n", '\n')
+    def pressBtn(self):
 
-        return configStr
-
-    def configDisp(self, event):
-        # generates a display box with the config read off the board
-
-        msg = self.readFromPuF()
-
-        if not isinstance(msg, (str, list)):
-            return
-
-        configStr = self.readableCfg(msg)
-
-        wx.MessageBox(configStr, 'Current Config',
-                      wx.OK | wx.ICON_INFORMATION)
+        self.cancelFlag = False
+        self.readConfig.Disable()
+        self.writeConfig.Disable()
+        self.cancelBtn.Enable()
 
     def ComsErrorMsg(self, msg):
         wx.MessageBox(msg, '',
                       wx.OK | wx.ICON_INFORMATION)
-
 
     # for whatever reason, it wouldn't update the output cal date if I made individual functions
 
