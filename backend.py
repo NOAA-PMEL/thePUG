@@ -10,6 +10,7 @@ import pickle
 import pandas as pd
 import wx
 from datetime import date
+from dateutil.parser import parse
 import cft
 import re
 
@@ -27,6 +28,120 @@ import re
 #         openFileDialog.Destroy()
 #
 #         return path
+
+def chk_date_format(input_str):
+
+    new_str = input_str.replace('/', '')
+
+    try:
+        dt = parse(new_str)
+    except ValueError:
+        return False
+
+    return dt.strftime('%m/%d/%y')
+
+def chk_time_format(input_str):
+
+    new_str = input_str.replace(':', '')
+
+    if len(new_str) > 6:
+        return False
+
+    if 0 > int(new_str[:2]) > 24:
+        return False
+    if 0 > int(new_str[2:4]) > 59:
+        return False
+    if 0 > int(new_str[4:]) > 59:
+        return False
+
+def chk_header_format(input_str):
+    if len(input_str) > 4:
+        return False
+
+    return True
+
+
+def chk_phone_format(input_str):
+    if len(input_str != 10):
+        return False
+
+    return True
+
+def import_cal_data(path):
+    # import cal data
+    # imports an excel sheet containing the calibration data
+    # exports a pickle dat file for convienence
+    # returns a dictionary containting calibration data and errors
+
+    # this is all going to be very finicky if the excel formatting gets changed around
+    # in the future, it will be desirable to make this more robust
+
+    tabs = ["Temp CAL DATA", "Pres CAL DATA"]
+
+    # read in our master calibration file from excel
+    data = pd.read_excel(path, sheet_name=tabs, skiprows=[0])
+
+    # extract temperature calibration data
+    # we also want to clean it up and warn the user if there are any issues
+
+    temp = data[tabs[0]]
+    temp = temp[temp['SN'].notna()]
+    tindex = temp.loc[:, 'SN'].astype(int)
+    t_cal = temp[['SN', 'Date', "A/C1", "B/C2", "C/C3"]].copy()
+    t_cal.index = tindex
+
+    # Slashes(/) play merry hell with our indexing; PURGE THEM
+    t_cal.rename(columns={"A/C1": 'AC1', "B/C2": 'BC2', "C/C3": 'CC3'}, inplace=True)
+    # t_cal.apply(pd.to_numeric, errors='coerce')
+    # t_cal.set_index(t_cal['SN'], drop=True, inplace=True)
+
+    # collect all the rows of data which have bad/incorrectly formatted data
+    bad_tdates = list(t_cal[t_cal['Date'].isna()].index)
+    bad_tsn = list(t_cal[t_cal['SN'].isna()].index)
+
+    t_cal.drop(labels=bad_tsn, inplace=True)
+
+    t_cal.drop(bad_tsn)
+    bad_tcal = set()
+
+    for col in ['AC1', 'BC2', 'CC3']:
+        bad_tcal.update(t_cal[t_cal[col].isna()].index)
+
+    t_cal.drop(labels=bad_tcal, inplace=True)
+
+    # Extract Pressure sensor data:
+    p_cal = data[tabs[1]]
+    p_cal.set_index(p_cal['Sensor'], drop=True, inplace=True)
+    p_cal[['Date', 'REF SBE METERS', 'KELLER BAR']].apply(pd.to_numeric, errors='coerce')
+
+    # collect the bad data for warnings
+    bad_pdate = list(p_cal[p_cal['Date'].isna()].index)
+    bad_pcal = set()
+
+    for col in ['REF SBE METERS', 'KELLER BAR']:
+        bad_pcal.update(p_cal[p_cal[col].isna()].index)
+
+    p_cal.drop(labels=bad_pcal, inplace=True)
+
+    # write our calibration data to a .dat, so that this process only needs to be performed for new calibration files
+    td = date.today()
+
+    # dat_name = os.path.dirname(os.path.abspath(__file__)) + "\\dat files\\" + "pt_calibration_" + str(td.year) + str(
+    #     td.month).rjust(2, '0') + str(td.day).rjust(2, '0') + ".dat"
+
+    package = {'temp': t_cal,
+               'pressure': p_cal,
+               't serial errors': bad_tsn,
+               't date errors': bad_tdates,
+               't cal errors': bad_tcal,
+               'p date errors': bad_pdate,
+               'p cal errors': bad_pcal
+               }
+
+    # pickle.dump(package, open(dat_name, 'wb'))
+
+    return package
+
 
 class ImportData:
 
@@ -50,7 +165,7 @@ class ImportData:
 
         temp = data[tabs[0]]
         temp = temp[temp['SN'].notna()]
-        tindex= temp.loc[:,'SN'].astype(int)
+        tindex= temp.loc[:, 'SN'].astype(int)
         t_cal = temp[['SN', 'Date', "A/C1", "B/C2", "C/C3"]].copy()
         t_cal.index = tindex
 
